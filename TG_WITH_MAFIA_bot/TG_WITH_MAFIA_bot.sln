@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.4.33213.308
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TG_WITH_MAFIA_bot", "TG_WITH_MAFIA_bot\TG_WITH_MAFIA_bot.csproj", "{9EBA0F46-B7A9-4F81-9C48-A1B75950DD0D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9EBA0F46-B7A9-4F81-9C48-A1B75950DD0D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9EBA0F46-B7A9-4F81-9C48-A1B75950DD0D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9EBA0F46-B7A9-4F81-9C48-A1B75950DD0D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9EBA0F46-B7A9-4F81-9C48-A1B75950DD0D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E8F7DCF1-8357-407F-B7AA-951204830AD8}
+	EndGlobalSection
+EndGlobal
