@@ -39,33 +39,13 @@ namespace TG_WITH_MAFIA_bot
             // Command controller
             if (message != null && currentBotState != BotStates.WAITING_CONNECTION)
             {
-                if (message.Text[0] == '/')
+                if (message.Text.StartsWith("/"))
                 {
-                    if (message.Text == "/start")
+                    if (message.Text.ToLower().StartsWith("/start") || message.Text.ToLower().StartsWith("/menu"))
                     {
                         await SendMainMenu(botClient, message.Chat.Id);
                     }
-                    else if (message.Text?.Contains("/connect") == true)
-                    {
-                        currentBotState = BotStates.WAITING_CONNECTION;
-                    }
-                    else
-                    {
-                        await botClient.SendTextMessageAsync(chatId, $"Неизвестная команда");
-                    }
-                }
-            }
-
-            // Menu controller
-            if (callbackQuery != null || currentBotState == BotStates.WAITING_CONNECTION)
-            {
-                if (callbackQuery?.Data == "/BTN_CREATE" && currentBotState != BotStates.WAITING_CONNECTION)
-                {
-                    await HandleCreateRoom(botClient, chatId);
-                }
-                else if (callbackQuery?.Data == "/BTN_CONNECT" || currentBotState == BotStates.WAITING_CONNECTION)
-                {
-                    if (message?.Text != null && message.Text.StartsWith("/connect"))
+                    else if (message.Text?.StartsWith("/connect") == true)
                     {
                         // Extracting the room ID from the command "/connect [ID]"
                         var roomIdText = message.Text.Split(' ')[1];
@@ -84,12 +64,26 @@ namespace TG_WITH_MAFIA_bot
                     }
                 }
             }
+
+            // Menu controller
+            if (callbackQuery != null)
+            {
+                if (callbackQuery?.Data == "/BTN_CREATE")
+                {
+                    await HandleCreateRoom(botClient, chatId);
+                }
+                else if (callbackQuery?.Data == "/BTN_CONNECT")
+                {
+                    await botClient.SendTextMessageAsync(chatId, $"Введите команду '/connect' и добавьте ID комнаты");
+
+                }
+            }
         }
 
 
         private async static Task HandleCreateRoom(ITelegramBotClient botClient, long chatId)
         {
-            await botClient.SendTextMessageAsync(chatId, $"Вы выбрали 'Создать комнату'");
+            //await botClient.SendTextMessageAsync(chatId, $"Вы выбрали 'Создать комнату'");
             Player roomOwner = new Player(chatId);
             Room room = new Room(roomOwner);
             roomsController.CreateNewRoom(room);
@@ -98,12 +92,12 @@ namespace TG_WITH_MAFIA_bot
 
         private async static Task HandleConnect(ITelegramBotClient botClient, long chatId, long roomId)
         {
-            await botClient.SendTextMessageAsync(chatId, $"Вы выбрали 'Присоединиться'");
-            if (currentBotState == BotStates.DEFAULT)
-            {
-                await botClient.SendTextMessageAsync(chatId, $"Введите команду '/connect ' и введите ID комнаты");
-                return;
-            }
+        //    await botClient.SendTextMessageAsync(chatId, $"Вы выбрали 'Присоединиться'");
+        //    if (currentBotState == BotStates.DEFAULT)
+        //    {
+        //        await botClient.SendTextMessageAsync(chatId, $"Введите команду '/connect ' и введите ID комнаты");
+        //        return;
+        //    }
 
             Player newPlayer = new Player(chatId);
             if (roomsController.AddPlayerTo(roomsController.GetRoomById(roomId), newPlayer))
@@ -114,7 +108,7 @@ namespace TG_WITH_MAFIA_bot
             {
                 await botClient.SendTextMessageAsync(chatId, $"Комнаты с введенным ID не существует");
             }
-            currentBotState = BotStates.DEFAULT;
+            //currentBotState = BotStates.DEFAULT;
         }
 
         private static Task Error(ITelegramBotClient arg1, Exception arg2, CancellationToken arg3)
