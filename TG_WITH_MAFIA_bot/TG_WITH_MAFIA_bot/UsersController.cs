@@ -11,9 +11,9 @@ namespace TG_WITH_MAFIA_bot
         private List<User> users;
         public UsersController() { users = new List<User>(); }
         public UsersController(List<User> users) { this.users = users; }
-        public int GetUserListId(long ChatID)
+        public int FindUserIndex(long ChatID)
         {
-            return users.FindIndex(us => us.ChatId == ChatID);
+            return users.FindIndex(user => user.ChatID == ChatID);
         }
         public bool ChangeUserState(int idInList, UserStates state)
         {
@@ -32,7 +32,7 @@ namespace TG_WITH_MAFIA_bot
         }
         public bool Contains(User user)
         {
-            if (GetUserListId(user.ChatId) != -1) return true;
+            if (FindUserIndex(user.ChatID) != -1) return true;
             return false;
         }
     }

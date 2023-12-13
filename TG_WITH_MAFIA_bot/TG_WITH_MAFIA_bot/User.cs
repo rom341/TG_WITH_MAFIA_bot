@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Telegram.Bot.Types;
 
 namespace TG_WITH_MAFIA_bot
 {
@@ -15,12 +14,12 @@ namespace TG_WITH_MAFIA_bot
     }
     public class User
     {
-        public long ChatId { get; set; }
+        public long ChatID { get; private set; }
         public UserStates UserState { get; set; }
-        public User(long chatId, UserStates userState)
+        public User(long id)
         {
-            ChatId = chatId;
-            UserState = userState;
+            ChatID = id;
+            UserState = UserStates.INMENU;
         }
     }
 }

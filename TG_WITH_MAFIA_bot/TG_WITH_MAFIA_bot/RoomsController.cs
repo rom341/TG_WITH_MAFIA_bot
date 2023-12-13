@@ -8,29 +8,36 @@ namespace TG_WITH_MAFIA_bot
 {
     public class RoomsController
     {
-        private List<Room> rooms;
+        public List<Room> rooms { get; private set; }
         public RoomsController() { rooms = new List<Room>(); }
         public RoomsController(List<Room> rooms) { this.rooms = rooms; }
         public void CreateNewRoom(Room newRoom) { rooms.Add(newRoom); }
-        public int GetRoomListId(long roomId)
+        public int FindRoomIndexById(long roomId)
         {
             return rooms.FindIndex(currentRoom => currentRoom.Id == roomId);
         }
-        public bool AddPlayerTo(int idInList, Player newPlayer)
+        public bool AddPlayerTo(int idInList, User newPlayer)
         {
             if (idInList < 0 || idInList >= rooms.Count) { Console.WriteLine($"Room with id '{idInList}' is not found"); return false; }
 
             rooms[idInList].AddPlayer(newPlayer);
             return true;
         }
-        public int FindRoomListIdContainsPlayer(Player player)
+        public int FindRoomIndexWithPlayer(User player)
         {
-            return rooms.FindIndex(room => room.GetPlayerListId(player) != -1);
+            return rooms.FindIndex(room => room.FindPlayerIndex(player) != -1);
         }
-        public void GetRoom(int idInList, out Room resultRoom)
+        public bool GetRoom(int idInList, out Room resultRoom)
         {
-            if (idInList < 0 || idInList >= rooms.Count) { Console.WriteLine($"Room with id '{idInList}' is not found"); resultRoom = null; }
-                resultRoom = rooms[idInList];
+            if (idInList < 0 || idInList >= rooms.Count)
+            {
+                Console.WriteLine($"Room with id '{idInList}' is not found");
+                resultRoom = null;
+                return false;
+            }
+
+            resultRoom = rooms[idInList];
+            return true;
         }
     }
 }

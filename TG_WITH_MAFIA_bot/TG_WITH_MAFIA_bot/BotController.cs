@@ -37,9 +37,9 @@ namespace TG_WITH_MAFIA_bot
                 {
                     if (message.Text.ToLower().StartsWith("/start") || message.Text.ToLower().StartsWith("/menu"))
                     {
-                        User user = new User(message.Chat.Id, UserStates.INMENU);
+                        User user = new User(message.Chat.Id);
                         if (usersController.Contains(user))
-                            usersController.ChangeUserState(usersController.GetUserListId(user.ChatId), UserStates.INMENU);
+                            usersController.ChangeUserState(usersController.FindUserIndex(user.ChatID), UserStates.INMENU);
                         else
                             usersController.AddUser(user);
 
@@ -47,13 +47,18 @@ namespace TG_WITH_MAFIA_bot
                     }
                     else if (message.Text?.StartsWith("/connect") == true)
                     {
+                        if(usersController.GetUserState(usersController.FindUserIndex(chatId)) != UserStates.INMENU)
+                        {
+                            await botClient.SendTextMessageAsync(chatId, $"Вы уже состоите в комнате. Используйте '/room list' чтобы узнать подробнее");
+                            return;
+                        }
                         // Extracting the room ID from the command "/connect [ID]"
                         var roomIdText = message.Text.Split(' ')[1];
                         if (long.TryParse(roomIdText, out long roomId))
                         {
-                            if (roomsController.GetRoomListId(roomId) != -1)
+                            if (roomsController.FindRoomIndexById(roomId) != -1)
                             {
-                                usersController.ChangeUserState(usersController.GetUserListId(chatId), UserStates.INLOBBY);
+                                usersController.ChangeUserState(usersController.FindUserIndex(chatId), UserStates.INLOBBY);
                                 await HandleConnect(botClient, chatId, roomId);
                             }
                             else
@@ -66,9 +71,9 @@ namespace TG_WITH_MAFIA_bot
                     }
                     else if (message.Text.ToLower() == "/room list")
                     {
-                        if (usersController.GetUserState(usersController.GetUserListId(chatId)) == UserStates.INLOBBY)
+                        if (usersController.GetUserState(usersController.FindUserIndex(chatId)) == UserStates.INLOBBY)
                         {
-                            roomsController.GetRoom(roomsController.FindRoomListIdContainsPlayer(new Player(chatId)), out Room resultRoom);
+                            roomsController.GetRoom(roomsController.FindRoomIndexWithPlayer(new User(chatId)), out Room resultRoom);
                             await botClient.SendTextMessageAsync(chatId, $"{resultRoom.ToString()}");
                         }
                         else
@@ -88,9 +93,9 @@ namespace TG_WITH_MAFIA_bot
             {
                 if (callbackQuery?.Data == "/BTN_CREATE")
                 {
-                    if (usersController.GetUserState(usersController.GetUserListId(chatId)) == UserStates.INMENU)
+                    if (usersController.GetUserState(usersController.FindUserIndex(chatId)) == UserStates.INMENU)
                     {
-                        usersController.ChangeUserState(usersController.GetUserListId(chatId), UserStates.INLOBBY);
+                        usersController.ChangeUserState(usersController.FindUserIndex(chatId), UserStates.INLOBBY);
                         await HandleCreateRoom(botClient, chatId);
                     }
                     else
@@ -108,7 +113,7 @@ namespace TG_WITH_MAFIA_bot
 
         private async static Task HandleCreateRoom(ITelegramBotClient botClient, long chatId)
         {
-            Player roomOwner = new Player(chatId);
+            User roomOwner = new User(chatId);
             Room room = new Room(roomOwner);
             roomsController.CreateNewRoom(room);
             await botClient.SendTextMessageAsync(chatId, $"ID вашей комнаты: {room.Id}");
@@ -116,8 +121,8 @@ namespace TG_WITH_MAFIA_bot
 
         private async static Task HandleConnect(ITelegramBotClient botClient, long chatId, long roomId)
         {
-            Player newPlayer = new Player(chatId);
-            if (roomsController.AddPlayerTo(roomsController.GetRoomListId(roomId), newPlayer))
+            User newPlayer = new User(chatId);
+            if (roomsController.AddPlayerTo(roomsController.FindRoomIndexById(roomId), newPlayer))
             {
                 await botClient.SendTextMessageAsync(chatId, $"Подключено успешно");
             }

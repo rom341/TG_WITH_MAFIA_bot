@@ -9,31 +9,35 @@ namespace TG_WITH_MAFIA_bot
 {
     public class Room
     {
-        public long Id { get; set; }
-        private Player Owner;
-        private List<Player> players;
+        public long Id { get; private set; }
+        private User Owner;
+        private List<User> players;
 
-        public Room(Player owner)
+        public Room(User owner)
         {
             Owner = owner;
-            Id = Owner.Id;
-            players = new List<Player> { Owner };
+            Id = Owner.ChatID;
+            players = new List<User> { Owner };
         }
 
-        public void AddPlayer(Player newPlayer)
+        public void AddPlayer(User newPlayer)
         {
             players.Add(newPlayer);
         }
-        public int GetPlayerListId(Player targetPlayer)
+        public int FindPlayerIndex(User targetPlayer)
         {
-            return players.FindIndex(player => player.Id == targetPlayer.Id);
+            return players.FindIndex(player => player.ChatID == targetPlayer.ChatID);
+        }
+        public bool ContainsPlayer(User targetPlayer)
+        {
+            return players.Exists(player => player.ChatID == targetPlayer.ChatID);
         }
         public override string ToString()
         {
             StringBuilder playerIds = new StringBuilder();
             foreach (var player in players)
             {
-                playerIds.Append(player.Id).Append(", ");
+                playerIds.Append(player.ChatID).Append(", ");
             }
 
             // Remove the trailing comma and space
