@@ -9,21 +9,15 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace TG_WITH_MAFIA_bot
 {
-    enum BotStates
-    {
-        DEFAULT,
-        WAITING_CONNECTION
-    }
     public class BotController
     {
         private string botToken = "6984398334:AAFamXOnYYfZ9dkxFw0D6Zu1aqdq0QW23Ro";
         private static RoomsController roomsController = new RoomsController();
-        private static BotStates currentBotState;
+        private static UsersController usersController = new UsersController();
 
         public void StartBot()
         {
             Console.WriteLine("Start working");
-            currentBotState = BotStates.DEFAULT;
             var botClient = new TelegramBotClient(botToken);
             botClient.StartReceiving(Update, Error);
         }
@@ -37,12 +31,18 @@ namespace TG_WITH_MAFIA_bot
             var chatId = message?.Chat.Id ?? callbackQuery?.Message.Chat.Id ?? 0;
 
             // Command controller
-            if (message != null && currentBotState != BotStates.WAITING_CONNECTION)
+            if (message != null)
             {
                 if (message.Text.StartsWith("/"))
                 {
                     if (message.Text.ToLower().StartsWith("/start") || message.Text.ToLower().StartsWith("/menu"))
                     {
+                        User user = new User(message.Chat.Id, UserStates.INMENU);
+                        if (usersController.Contains(user))
+                            usersController.ChangeUserState(usersController.GetUserListId(user.ChatId), UserStates.INMENU);
+                        else
+                            usersController.AddUser(user);
+
                         await SendMainMenu(botClient, message.Chat.Id);
                     }
                     else if (message.Text?.StartsWith("/connect") == true)
@@ -51,11 +51,29 @@ namespace TG_WITH_MAFIA_bot
                         var roomIdText = message.Text.Split(' ')[1];
                         if (long.TryParse(roomIdText, out long roomId))
                         {
-                            await HandleConnect(botClient, chatId, roomId);
+                            if (roomsController.GetRoomListId(roomId) != -1)
+                            {
+                                usersController.ChangeUserState(usersController.GetUserListId(chatId), UserStates.INLOBBY);
+                                await HandleConnect(botClient, chatId, roomId);
+                            }
+                            else
+                                await botClient.SendTextMessageAsync(chatId, $"Комнаты с введенным ID не существует");
                         }
                         else
                         {
                             await botClient.SendTextMessageAsync(chatId, $"Некорректный формат ID комнаты");
+                        }
+                    }
+                    else if (message.Text.ToLower() == "/room list")
+                    {
+                        if (usersController.GetUserState(usersController.GetUserListId(chatId)) == UserStates.INLOBBY)
+                        {
+                            roomsController.GetRoom(roomsController.FindRoomListIdContainsPlayer(new Player(chatId)), out Room resultRoom);
+                            await botClient.SendTextMessageAsync(chatId, $"{resultRoom.ToString()}");
+                        }
+                        else
+                        {
+                            await botClient.SendTextMessageAsync(chatId, $"Вы не состоите в комнате!");
                         }
                     }
                     else
@@ -70,12 +88,19 @@ namespace TG_WITH_MAFIA_bot
             {
                 if (callbackQuery?.Data == "/BTN_CREATE")
                 {
-                    await HandleCreateRoom(botClient, chatId);
+                    if (usersController.GetUserState(usersController.GetUserListId(chatId)) == UserStates.INMENU)
+                    {
+                        usersController.ChangeUserState(usersController.GetUserListId(chatId), UserStates.INLOBBY);
+                        await HandleCreateRoom(botClient, chatId);
+                    }
+                    else
+                    {
+                        await botClient.SendTextMessageAsync(chatId, $"Вы уже в комнате!");
+                    }
                 }
                 else if (callbackQuery?.Data == "/BTN_CONNECT")
                 {
                     await botClient.SendTextMessageAsync(chatId, $"Введите команду '/connect' и добавьте ID комнаты");
-
                 }
             }
         }
@@ -83,7 +108,6 @@ namespace TG_WITH_MAFIA_bot
 
         private async static Task HandleCreateRoom(ITelegramBotClient botClient, long chatId)
         {
-            //await botClient.SendTextMessageAsync(chatId, $"Вы выбрали 'Создать комнату'");
             Player roomOwner = new Player(chatId);
             Room room = new Room(roomOwner);
             roomsController.CreateNewRoom(room);
@@ -92,15 +116,8 @@ namespace TG_WITH_MAFIA_bot
 
         private async static Task HandleConnect(ITelegramBotClient botClient, long chatId, long roomId)
         {
-        //    await botClient.SendTextMessageAsync(chatId, $"Вы выбрали 'Присоединиться'");
-        //    if (currentBotState == BotStates.DEFAULT)
-        //    {
-        //        await botClient.SendTextMessageAsync(chatId, $"Введите команду '/connect ' и введите ID комнаты");
-        //        return;
-        //    }
-
             Player newPlayer = new Player(chatId);
-            if (roomsController.AddPlayerTo(roomsController.GetRoomById(roomId), newPlayer))
+            if (roomsController.AddPlayerTo(roomsController.GetRoomListId(roomId), newPlayer))
             {
                 await botClient.SendTextMessageAsync(chatId, $"Подключено успешно");
             }
@@ -108,7 +125,6 @@ namespace TG_WITH_MAFIA_bot
             {
                 await botClient.SendTextMessageAsync(chatId, $"Комнаты с введенным ID не существует");
             }
-            //currentBotState = BotStates.DEFAULT;
         }
 
         private static Task Error(ITelegramBotClient arg1, Exception arg2, CancellationToken arg3)
