@@ -8,7 +8,7 @@ namespace TG_WITH_MAFIA_bot
 {
     public enum UserStates
     {
-        None,
+        NONE,
         INMENU,
         INLOBBY,
         INGAME

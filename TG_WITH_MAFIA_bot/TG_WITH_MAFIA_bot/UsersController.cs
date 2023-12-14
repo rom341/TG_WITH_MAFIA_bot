@@ -23,7 +23,7 @@ namespace TG_WITH_MAFIA_bot
         }
         public UserStates GetUserState(int idInList)
         {
-            if (idInList < 0 || idInList >= users.Count) { Console.WriteLine($"User with id '{idInList}' is not found"); return UserStates.None; }
+            if (idInList < 0 || idInList >= users.Count) { Console.WriteLine($"User with id '{idInList}' is not found"); return UserStates.NONE; }
             return users[idInList].UserState;
         }
         public void AddUser(User user)

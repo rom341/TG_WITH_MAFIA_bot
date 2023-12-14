@@ -11,31 +11,38 @@ namespace TG_WITH_MAFIA_bot
     {
         public long Id { get; private set; }
         private User Owner;
-        private List<User> players;
+        public List<User> users { get; private set; }
 
+        //public Room()
+        //{
+        //    Owner = null;
+        //    Id = -1;
+        //    users = null;
+        //}
         public Room(User owner)
         {
             Owner = owner;
             Id = Owner.ChatID;
-            players = new List<User> { Owner };
+            users = new List<User> { Owner };
         }
 
-        public void AddPlayer(User newPlayer)
+        public void AddUser(User newUser)
         {
-            players.Add(newPlayer);
+            users.Add(newUser);
         }
-        public int FindPlayerIndex(User targetPlayer)
+        public void RemoveUser(User userToDelete) { users.Remove(userToDelete); }
+        public int FindUserIndex(User targetUser)
         {
-            return players.FindIndex(player => player.ChatID == targetPlayer.ChatID);
+            return users.FindIndex(player => player.ChatID == targetUser.ChatID);
         }
-        public bool ContainsPlayer(User targetPlayer)
+        public bool ContainsUser(User targetUser)
         {
-            return players.Exists(player => player.ChatID == targetPlayer.ChatID);
+            return users.Exists(player => player.ChatID == targetUser.ChatID);
         }
         public override string ToString()
         {
             StringBuilder playerIds = new StringBuilder();
-            foreach (var player in players)
+            foreach (var player in users)
             {
                 playerIds.Append(player.ChatID).Append(", ");
             }
