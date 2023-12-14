@@ -32,7 +32,7 @@ namespace TG_WITH_MAFIA_bot
         public void StartGame()
         {
             // Инициализация игры, ролей, раздача ролей игрокам и т.д.
-            // ...
+            
 
             Console.WriteLine("Игра началась!");
             foreach (var player in players)
