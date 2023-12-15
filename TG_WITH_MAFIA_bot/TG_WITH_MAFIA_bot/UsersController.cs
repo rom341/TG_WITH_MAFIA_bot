@@ -8,12 +8,16 @@ namespace TG_WITH_MAFIA_bot
 {
     public class UsersController
     {
-        private List<User> users;
+        public List<User> users { get; private set; }
         public UsersController() { users = new List<User>(); }
         public UsersController(List<User> users) { this.users = users; }
         public int FindUserIndex(long ChatID)
         {
             return users.FindIndex(user => user.ChatID == ChatID);
+        }
+        public int FindUserIndex(Func<User, bool> predicate)
+        {
+            return users.FindIndex(user => predicate(user));
         }
         public bool ChangeUserState(int idInList, UserStates state)
         {

@@ -57,6 +57,10 @@ namespace TG_WITH_MAFIA_bot
             {
                 await HandleRoomListCommand(chatId);
             }
+            else if(message.Text.ToLower() == "/leave")
+            {
+                await HendleLeaveCommand(new User(chatId));
+            }
             else
             {
                 await SendMessage(chatId, "Неизвестная команда");
@@ -77,30 +81,19 @@ namespace TG_WITH_MAFIA_bot
             }
         }
 
-        private void HandleStartMenuCommand(long chatId)
+        private async void HandleStartMenuCommand(long chatId)
         {
             User user = new User(chatId);
 
             if (usersController.Contains(user))
             {
                 usersController.ChangeUserState(usersController.FindUserIndex(user.ChatID), UserStates.INMENU);
-                //destroy a room, where user was an owner
-                if (roomsController.FindRoomIndexById(user.ChatID) != -1)
-                {                    
-                    roomsController.GetRoom(roomsController.FindRoomIndexById(user.ChatID), out Room room);
-                    roomsController.DestroyRoom(room);
-                }
-                //leave from room, where user is just a member
-                else
-                {
-                    roomsController.GetRoom(roomsController.FindRoomIndexWithUser(user), out Room room);
-                    room.RemoveUser(user);
-                }
+                await HendleLeaveCommand(user);
             }
             else
                 usersController.AddUser(user);
 
-            SendMainMenu(chatId);
+            await SendMainMenu(chatId);
         }
 
         private async Task HandleConnectCommand(long chatId, string text)
@@ -121,7 +114,8 @@ namespace TG_WITH_MAFIA_bot
             var roomIdText = text.Split(' ')[1];
             if (long.TryParse(roomIdText, out long roomId))
             {
-                if (roomsController.FindRoomIndexById(roomId) != -1)
+                int idOfFoundRoom = roomsController.FindRoomIndex(room => room.Id == roomId);
+                if (idOfFoundRoom != -1)
                 {
                     usersController.ChangeUserState(usersController.FindUserIndex(chatId), UserStates.INLOBBY);
                     await HandleConnect(chatId, roomId);
@@ -134,6 +128,33 @@ namespace TG_WITH_MAFIA_bot
             else
             {
                 await SendMessage(chatId, "Некорректный формат ID комнаты");
+            }
+        }
+
+        private async Task HendleLeaveCommand(User user)
+        {
+            int roomId = roomsController.FindRoomIndex(room => room.Owner.ChatID == user.ChatID);
+            //destroy a room, where user was an owner
+            if (roomId != -1)
+            {
+                roomsController.GetRoom(roomId, out Room roomToDestroy);
+                roomsController.DestroyRoom(roomToDestroy);
+            }
+            else
+            {
+                //leave from room, where user is just a member
+                roomId = roomsController.FindRoomIndex(r => r.ContainsUser(u => u.ChatID == user.ChatID));
+                if (roomId != -1)
+                {
+                    roomsController.GetRoom(roomId, out Room room);
+                    await room.RemoveUser(user);
+                    await SendMessage(user.ChatID, $"Комната покинута");
+                }
+                //if no room with user
+                else
+                {
+                    return;
+                }
             }
         }
 
@@ -153,9 +174,9 @@ namespace TG_WITH_MAFIA_bot
         private async Task HandleCreateRoom(long chatId)
         {
             User roomOwner = new User(chatId);
-            Room room = new Room(roomOwner);
-            roomsController.CreateNewRoom(room);
-            await SendMessage(chatId, $"ID вашей комнаты: {room.Id}");
+            Room newRoom = new Room(roomOwner, this);
+            roomsController.CreateNewRoom(newRoom);
+            await SendMessage(chatId, $"ID вашей комнаты: {newRoom.Id}");
             usersController.ChangeUserState(usersController.FindUserIndex(roomOwner.ChatID), UserStates.INLOBBY);
         }
 
@@ -163,7 +184,7 @@ namespace TG_WITH_MAFIA_bot
         {
             User newPlayer = new User(chatId);
 
-            if (roomsController.AddPlayerTo(roomsController.FindRoomIndexById(roomId), newPlayer))
+            if (roomsController.AddPlayerTo(roomsController.FindRoomIndex(room=>room.Id == roomId), newPlayer))
             {
                 await SendMessage(chatId, "Подключено успешно");
             }

@@ -21,10 +21,10 @@ namespace TG_WITH_MAFIA_bot
             });
             rooms.Remove(room);
         }
-        public int FindRoomIndexById(long roomId)
-        {
-            return rooms.FindIndex(currentRoom => currentRoom.Id == roomId);
-        }
+        //public int FindRoomIndexById(long roomId)
+        //{
+        //    return rooms.FindIndex(currentRoom => currentRoom.Id == roomId);
+        //}
         public bool AddPlayerTo(int idInList, User newPlayer)
         {
             if (idInList < 0 || idInList >= rooms.Count) { Console.WriteLine($"Room with id '{idInList}' is not found"); return false; }
@@ -47,6 +47,10 @@ namespace TG_WITH_MAFIA_bot
 
             resultRoom = rooms[idInList];
             return true;
+        }
+        public int FindRoomIndex(Func<Room, bool> predicate)
+        {
+            return rooms.FindIndex(room => predicate(room));
         }
     }
 }
