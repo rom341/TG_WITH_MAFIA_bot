@@ -8,10 +8,9 @@ namespace TG_WITH_MAFIA_bot
 {
     public class Player
     {
-        public long Id { get; set; }
-        public Player(long id)
-        {
-            Id = id;
-        }
+        public User user { get; set; }
+        public string name { get; set; }
+        public RoleBase role { get; set; }
+        Player(ref User user, RoleBase role) { this.user = user; this.role = role; }
     }
 }

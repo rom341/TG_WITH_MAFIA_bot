@@ -9,120 +9,201 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace TG_WITH_MAFIA_bot
 {
-    enum BotStates
-    {
-        DEFAULT,
-        WAITING_CONNECTION
-    }
     public class BotController
     {
-        private string botToken = "6984398334:AAFamXOnYYfZ9dkxFw0D6Zu1aqdq0QW23Ro";
-        private static RoomsController roomsController = new RoomsController();
-        private static BotStates currentBotState;
+        private static string botToken = "6984398334:AAFamXOnYYfZ9dkxFw0D6Zu1aqdq0QW23Ro";
+        private static RoomsController roomsController;
+        private static UsersController usersController = new UsersController();
+        private TelegramBotClient botClient = new TelegramBotClient(botToken);
 
         public void StartBot()
         {
             Console.WriteLine("Start working");
-            currentBotState = BotStates.DEFAULT;
-            var botClient = new TelegramBotClient(botToken);
             botClient.StartReceiving(Update, Error);
+            roomsController = new RoomsController(this);
         }
 
-        async static Task Update(ITelegramBotClient botClient, Update update, CancellationToken token)
+        private async Task Update(ITelegramBotClient botClient, Update update, CancellationToken token)
         {
             var message = update.Message;
             var callbackQuery = update.CallbackQuery;
 
-            // Get a chatId by any cost
             var chatId = message?.Chat.Id ?? callbackQuery?.Message.Chat.Id ?? 0;
 
-            // Command controller
-            if (message != null && currentBotState != BotStates.WAITING_CONNECTION)
+            if (message != null && message.Text.StartsWith("/"))
             {
-                if (message.Text[0] == '/')
-                {
-                    if (message.Text == "/start")
-                    {
-                        await SendMainMenu(botClient, message.Chat.Id);
-                    }
-                    else if (message.Text?.Contains("/connect") == true)
-                    {
-                        currentBotState = BotStates.WAITING_CONNECTION;
-                    }
-                    else
-                    {
-                        await botClient.SendTextMessageAsync(chatId, $"Неизвестная команда");
-                    }
-                }
+                await HandleCommands(botClient, message);
             }
 
-            // Menu controller
-            if (callbackQuery != null || currentBotState == BotStates.WAITING_CONNECTION)
+            if (callbackQuery != null)
             {
-                if (callbackQuery?.Data == "/BTN_CREATE" && currentBotState != BotStates.WAITING_CONNECTION)
-                {
-                    await HandleCreateRoom(botClient, chatId);
-                }
-                else if (callbackQuery?.Data == "/BTN_CONNECT" || currentBotState == BotStates.WAITING_CONNECTION)
-                {
-                    if (message?.Text != null && message.Text.StartsWith("/connect"))
-                    {
-                        // Extracting the room ID from the command "/connect [ID]"
-                        var roomIdText = message.Text.Split(' ')[1];
-                        if (long.TryParse(roomIdText, out long roomId))
-                        {
-                            await HandleConnect(botClient, chatId, roomId);
-                        }
-                        else
-                        {
-                            await botClient.SendTextMessageAsync(chatId, $"Некорректный формат ID комнаты");
-                        }
-                    }
-                    else
-                    {
-                        await botClient.SendTextMessageAsync(chatId, $"Неизвестная команда");
-                    }
-                }
+                await HandleCallbackQuery(botClient, callbackQuery);
             }
         }
 
-
-        private async static Task HandleCreateRoom(ITelegramBotClient botClient, long chatId)
+        private async Task HandleCommands(ITelegramBotClient botClient, Message message)
         {
-            await botClient.SendTextMessageAsync(chatId, $"Вы выбрали 'Создать комнату'");
-            Player roomOwner = new Player(chatId);
-            Room room = new Room(roomOwner);
-            roomsController.CreateNewRoom(room);
-            await botClient.SendTextMessageAsync(chatId, $"ID вашей комнаты: {room.Id}");
-        }
+            var chatId = message.Chat.Id;
 
-        private async static Task HandleConnect(ITelegramBotClient botClient, long chatId, long roomId)
-        {
-            await botClient.SendTextMessageAsync(chatId, $"Вы выбрали 'Присоединиться'");
-            if (currentBotState == BotStates.DEFAULT)
+            if (message.Text.ToLower().Equals("/start") || message.Text.ToLower().Equals("/menu"))
             {
-                await botClient.SendTextMessageAsync(chatId, $"Введите команду '/connect ' и введите ID комнаты");
-                return;
+                HandleStartMenuCommand(chatId);
             }
-
-            Player newPlayer = new Player(chatId);
-            if (roomsController.AddPlayerTo(roomsController.GetRoomById(roomId), newPlayer))
+            else if (message.Text?.StartsWith("/connect") == true)
             {
-                await botClient.SendTextMessageAsync(chatId, $"Подключено успешно");
+                await HandleConnectCommand(chatId, message.Text);
+            }
+            else if (message.Text.ToLower() == "/room list")
+            {
+                await HandleRoomListCommand(chatId);
+            }
+            else if(message.Text.ToLower() == "/leave")
+            {
+                await HendleLeaveCommand(new User(chatId));
             }
             else
             {
-                await botClient.SendTextMessageAsync(chatId, $"Комнаты с введенным ID не существует");
+                await SendMessage(chatId, "Неизвестная команда");
             }
-            currentBotState = BotStates.DEFAULT;
         }
 
-        private static Task Error(ITelegramBotClient arg1, Exception arg2, CancellationToken arg3)
+        private async Task HandleCallbackQuery(ITelegramBotClient botClient, CallbackQuery callbackQuery)
         {
-            throw new NotImplementedException();
+            var chatId = callbackQuery.Message.Chat.Id;
+
+            if (callbackQuery?.Data == "/BTN_CREATE")
+            {
+                await HandleCreateRoom(chatId);
+            }
+            else if (callbackQuery?.Data == "/BTN_CONNECT")
+            {
+                await SendMessage(chatId, "Введите команду '/connect' и добавьте ID комнаты");
+            }
         }
 
-        private static async Task SendMainMenu(ITelegramBotClient botClient, long chatId)
+        private async void HandleStartMenuCommand(long chatId)
+        {
+            User user = new User(chatId);
+
+            if (usersController.Contains(user))
+            {
+                usersController.ChangeUserState(usersController.FindUserIndex(user.ChatID), UserStates.INMENU);
+                await HendleLeaveCommand(user);
+            }
+            else
+                usersController.AddUser(user);
+
+            await SendMainMenu(chatId);
+        }
+
+        private async Task HandleConnectCommand(long chatId, string text)
+        {
+            UserStates userState = usersController.GetUserState(usersController.FindUserIndex(chatId));
+            if(userState==UserStates.NONE)
+            {
+                Console.WriteLine($"{chatId} tried to connect by {text}, but get the 'none' userState");
+                return;
+            }
+            
+            if (userState == UserStates.INLOBBY || userState == UserStates.INGAME) 
+            {
+                await SendMessage(chatId, "Вы уже состоите в комнате. Используйте '/room list' чтобы узнать подробнее");
+                return;
+            }
+
+            var roomIdText = text.Split(' ')[1];
+            if (long.TryParse(roomIdText, out long roomId))
+            {
+                int idOfFoundRoom = roomsController.FindRoomIndex(room => room.Id == roomId);
+                if (idOfFoundRoom != -1)
+                {
+                    usersController.ChangeUserState(usersController.FindUserIndex(chatId), UserStates.INLOBBY);
+                    await HandleConnect(chatId, roomId);
+                }
+                else
+                {
+                    await SendMessage(chatId, "Комнаты с введенным ID не существует");
+                }
+            }
+            else
+            {
+                await SendMessage(chatId, "Некорректный формат ID комнаты");
+            }
+        }
+
+        private async Task HendleLeaveCommand(User user)
+        {
+            int roomId = roomsController.FindRoomIndex(room => room.Owner.ChatID == user.ChatID);
+            //destroy a room, where user was an owner
+            if (roomId != -1)
+            {
+                roomsController.GetRoom(roomId, out Room roomToDestroy);
+                roomsController.DestroyRoom(roomToDestroy);
+            }
+            else
+            {
+                //leave from room, where user is just a member
+                roomId = roomsController.FindRoomIndex(r => r.ContainsUser(u => u.ChatID == user.ChatID));
+                if (roomId != -1)
+                {
+                    roomsController.GetRoom(roomId, out Room room);
+                    await room.RemoveUser(user);
+                    await SendMessage(user.ChatID, $"Комната покинута");
+                }
+                //if no room with user
+                else
+                {
+                    return;
+                }
+            }
+        }
+
+        private async Task HandleRoomListCommand(long chatId)
+        {
+            if (usersController.GetUserState(usersController.FindUserIndex(chatId)) == UserStates.INLOBBY)
+            {
+                roomsController.GetRoom(roomsController.FindRoomIndexWithUser(new User(chatId)), out Room resultRoom);
+                await SendMessage(chatId, $"{resultRoom.ToString()}");
+            }
+            else
+            {
+                await SendMessage(chatId, "Вы не состоите в комнате!");
+            }
+        }
+
+        private async Task HandleCreateRoom(long chatId)
+        {
+            User roomOwner = new User(chatId);
+            Room newRoom = new Room(roomOwner, this);
+            roomsController.CreateNewRoom(newRoom);
+            await SendMessage(chatId, $"ID вашей комнаты: {newRoom.Id}");
+            usersController.ChangeUserState(usersController.FindUserIndex(roomOwner.ChatID), UserStates.INLOBBY);
+        }
+
+        private async Task HandleConnect(long chatId, long roomId)
+        {
+            User newPlayer = new User(chatId);
+
+            if (roomsController.AddPlayerTo(roomsController.FindRoomIndex(room=>room.Id == roomId), newPlayer))
+            {
+                await SendMessage(chatId, "Подключено успешно");
+            }
+            else
+            {
+                await SendMessage(chatId, "Комнаты с введенным ID не существует");
+            }
+        }
+
+        private Task Error(ITelegramBotClient arg1, Exception arg2, CancellationToken arg3)
+        {
+            // Log the error (replace this with your actual logging mechanism)
+            Console.WriteLine($"Error: {arg2.Message}");
+
+            // You can return a completed task to suppress the exception
+            return Task.CompletedTask;
+        }
+
+        private async Task SendMainMenu(long chatId)
         {
             var keyboard = new InlineKeyboardMarkup(new[]
             {
@@ -133,7 +214,12 @@ namespace TG_WITH_MAFIA_bot
                 }
             });
 
-            await botClient.SendTextMessageAsync(chatId, "Выберите действие:", replyMarkup: keyboard);
+            await SendMessage(chatId, "Выберите действие:", replyMarkup: keyboard);
+        }
+
+        public async Task SendMessage(long chatId, string message, IReplyMarkup replyMarkup = null)
+        {
+            await botClient.SendTextMessageAsync(chatId, message, replyMarkup: replyMarkup);
         }
     }
 }
