@@ -9,7 +9,7 @@ namespace TG_WITH_MAFIA_bot
     public class Player
     {
         public User user { get; set; }
-        public string name { get; set; }
+        //public string name { get; set; }
         public RoleBase role { get; set; }
         Player(ref User user, RoleBase role) { this.user = user; this.role = role; }
     }

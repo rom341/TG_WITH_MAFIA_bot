@@ -14,6 +14,7 @@ namespace TG_WITH_MAFIA_bot
         private static string botToken = "6984398334:AAFamXOnYYfZ9dkxFw0D6Zu1aqdq0QW23Ro";
         private static RoomsController roomsController;
         private static UsersController usersController = new UsersController();
+        private static GameController gameController;
         private TelegramBotClient botClient = new TelegramBotClient(botToken);
 
         public void StartBot()
@@ -57,6 +58,10 @@ namespace TG_WITH_MAFIA_bot
             {
                 await HandleRoomListCommand(chatId);
             }
+            else if(message.Text.ToLower() == "/room start")
+            {
+                await HendleRoomStartComamnd(chatId);
+            }
             else if(message.Text.ToLower() == "/leave")
             {
                 await HendleLeaveCommand(new User(chatId));
@@ -65,6 +70,11 @@ namespace TG_WITH_MAFIA_bot
             {
                 await SendMessage(chatId, "Неизвестная команда");
             }
+        }
+
+        private async Task HendleRoomStartComamnd(long chatId)
+        {
+            gamec
         }
 
         private async Task HandleCallbackQuery(ITelegramBotClient botClient, CallbackQuery callbackQuery)

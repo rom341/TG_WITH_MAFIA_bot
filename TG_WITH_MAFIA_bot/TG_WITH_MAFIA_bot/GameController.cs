@@ -8,70 +8,110 @@ namespace TG_WITH_MAFIA_bot
 {
     public class GameController
     {
-        private List<Player> players;
-        private List<RoleBase> roles;
-        RoleBase[] PossibleRoles = new RoleBase[] { new CivilianRole(), new MafiaRole() };
+        private BotController botController;
+        public List<Room> rooms { get; private set; }
+        private RoleBase[] PossibleRoles = new RoleBase[] { new CivilianRole(), new MafiaRole() };
 
-        public GameController(List<Player> players)
+        public GameController(BotController botController)
         {
-            this.players = players;
-            this.roles = new List<RoleBase>();
-            Random random = new Random();
-
-            foreach (var player in players)
-            {
-                IRole currentRole = PossibleRoles[random.Next(PossibleRoles.Length)].Clone();
-                if (currentRole is MafiaRole && roles.Count(r => r.GetType() == typeof(MafiaRole)) < roles.Count / 4)
-                {
-                    roles.Add((RoleBase)currentRole);
-                    player.role = (RoleBase)currentRole;
-                }
-            }
+            this.botController = botController;
         }
 
-        public void StartGame()
+
+        public void StartGame(List<Room> roomsWhereGameWillBegin)
         {
             // Инициализация игры, ролей, раздача ролей игрокам и т.д.
+            GiveRoles(roomsWhereGameWillBegin);
+
+            foreach(Room room in rooms)
+            { 
+                Console.WriteLine($"Игра '{room.Id}' началась!");
+                room.SendMEssageToAllUsers("Игра в вашей комнате началась!");
+            }
             
-
-            Console.WriteLine("Игра началась!");
-            foreach (var player in players)
-            {
-                Console.WriteLine($"{player.user.ChatID} получил роль {player.role.Name}");
-            }
         }
-
-        public void ProcessNightPhase()
+        private void GiveRoles(List<Room> roomsWhereGameWillBegin)
         {
-            // Логика для ночной фазы (если в игре присутствует ночь)
-            // ...
-
-            Console.WriteLine("Наступила ночь. Игроки делают свои действия.");
-
-            foreach (var player in players)
+            rooms = roomsWhereGameWillBegin;
+            Random random = new Random();
+            foreach (Room room in rooms)
             {
-                if (player.role is MafiaRole)
+                if (room.users.Count < 3)
                 {
-                    // Логика для действия мафии в ночи
-                    // ...
-                    Console.WriteLine($"Мафия игрока {player.user.ChatID} действует.");
-                    //player.role.UseSkill(ref /* цель для мафии */);
+                    botController.SendMessage(room.Owner.ChatID, $"Для начала игры необходимо, как минимум 3 игрока");
+                    rooms.Remove(room);
                 }
-                // Другие проверки для других ролей, если необходимо
+                //Заполняем 1/3 мафией, остальных гражданскими
+                else
+                {
+                    //Перемешаем масив
+                    for (int i = room.users.Count - 1; i >= 1; i--)
+                    {
+                        int j = random.Next(i + 1);
+                        // обменять значения data[j] и data[i]
+                        var temp = room.users[j];
+                        room.users[j] = room.users[i];
+                        room.users[i] = temp;
+                    }
+
+                    for (int i = 0; i < room.users.Count / 3; i++)
+                    {
+                        room.users[0].player.role = new MafiaRole();
+                    }
+                    for (int i = room.users.Count / 3; i < room.users.Count; i++)
+                    {
+                        room.users[0].player.role = new CivilianRole();
+                    }
+                }
+                ////Заготовка для большого количевста ролей
+                //else if(room.users.Count < 5)
+                //{
+                //    for (int i = room.users.Count - 1; i >= 1; i--)
+                //    {
+                //        int j = random.Next(i + 1);
+                //        // обменять значения data[j] и data[i]
+                //        var temp = room.users[j];
+                //        room.users[j] = room.users[i];
+                //        room.users[i] = temp;
+                //    }
+                //    room.users[0].player.role = new MafiaRole();
+                //    foreach(User user in room.users)
+                //        user.player.role = new CivilianRole();
+                //}
             }
-        }
 
-        public void ProcessDayPhase()
-        {
-            // Логика для дневной фазы (если в игре присутствует день)
-            // ...
-
-            Console.WriteLine("Наступил день. Игроки обсуждают события.");
-
-            foreach (var player in players)
+            public void ProcessNightPhase()
             {
-                // Логика для обсуждения и принятия решений
+                // Логика для ночной фазы (если в игре присутствует ночь)
                 // ...
+
+                Console.WriteLine("Наступила ночь. Игроки делают свои действия.");
+
+                foreach (var player in players)
+                {
+                    if (player.role is MafiaRole)
+                    {
+                        // Логика для действия мафии в ночи
+                        // ...
+                        Console.WriteLine($"Мафия игрока {player.user.ChatID} действует.");
+                        //player.role.UseSkill(ref /* цель для мафии */);
+                    }
+                    // Другие проверки для других ролей, если необходимо
+                }
+            }
+
+            public void ProcessDayPhase()
+            {
+                // Логика для дневной фазы (если в игре присутствует день)
+                // ...
+
+                Console.WriteLine("Наступил день. Игроки обсуждают события.");
+
+                foreach (var player in players)
+                {
+                    // Логика для обсуждения и принятия решений
+                    // ...
+                }
             }
         }
     }

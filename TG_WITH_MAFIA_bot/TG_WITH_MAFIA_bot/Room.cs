@@ -51,6 +51,13 @@ namespace TG_WITH_MAFIA_bot
         {
             return users.FindIndex(user => predicate(user));
         }
+        public void SendMEssageToAllUsers(string message)
+        {
+            foreach (User user in users)
+            {
+                botController.SendMessage(user.ChatID, message);
+            }
+        }
         public override string ToString()
         {
             StringBuilder playerIds = new StringBuilder();
