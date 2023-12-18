@@ -7,10 +7,18 @@ using Telegram.Bot.Types;
 
 namespace TG_WITH_MAFIA_bot
 {
+    public enum RoomStates
+    {
+        NONE,//ERROR
+        WAITING,
+        ISREADYTOSTART,
+        INGAME
+    }
     public class Room
     {
         private BotController botController;
-        public long Id { get; private set; }
+        public RoomStates roomState { get; set; }
+        public long Id{ get; set; }
         public User Owner { get; private set; }
         public List<User> users { get; private set; }
         public Room(User owner, BotController botController)
@@ -19,15 +27,13 @@ namespace TG_WITH_MAFIA_bot
             Id = Owner.ChatID;
             users = new List<User> { Owner };
             this.botController = botController;
+            roomState = RoomStates.WAITING;
         }
 
         public async Task AddUser(User newUser)
         {
-            users.ForEach(async user =>
-            {
-                await botController.SendMessage(user.ChatID, $"Пользователь ({newUser.ChatID}) Присоеденился");
-                user.UserState = UserStates.INMENU;
-            });
+            await botController.SendMessage(Owner.ChatID, $"Пользователь ({newUser.ChatID}) Присоеденился");
+            newUser.UserState = UserStates.INLOBBY;
             users.Add(newUser);
         }
         public async Task RemoveUser(User userToDelete) 

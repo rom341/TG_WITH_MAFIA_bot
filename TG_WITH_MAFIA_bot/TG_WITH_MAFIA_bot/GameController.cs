@@ -48,70 +48,49 @@ namespace TG_WITH_MAFIA_bot
                     for (int i = room.users.Count - 1; i >= 1; i--)
                     {
                         int j = random.Next(i + 1);
-                        // обменять значения data[j] и data[i]
                         var temp = room.users[j];
                         room.users[j] = room.users[i];
                         room.users[i] = temp;
                     }
-
+                    //Мафией будеи 1/3 игроков
                     for (int i = 0; i < room.users.Count / 3; i++)
                     {
                         room.users[0].player.role = new MafiaRole();
                     }
+                    //Остальные - гражданские
                     for (int i = room.users.Count / 3; i < room.users.Count; i++)
                     {
                         room.users[0].player.role = new CivilianRole();
                     }
-                }
-                ////Заготовка для большого количевста ролей
-                //else if(room.users.Count < 5)
-                //{
-                //    for (int i = room.users.Count - 1; i >= 1; i--)
-                //    {
-                //        int j = random.Next(i + 1);
-                //        // обменять значения data[j] и data[i]
-                //        var temp = room.users[j];
-                //        room.users[j] = room.users[i];
-                //        room.users[i] = temp;
-                //    }
-                //    room.users[0].player.role = new MafiaRole();
-                //    foreach(User user in room.users)
-                //        user.player.role = new CivilianRole();
-                //}
-            }
-
-            public void ProcessNightPhase()
-            {
-                // Логика для ночной фазы (если в игре присутствует ночь)
-                // ...
-
-                Console.WriteLine("Наступила ночь. Игроки делают свои действия.");
-
-                foreach (var player in players)
-                {
-                    if (player.role is MafiaRole)
+                    foreach(var user in room.users)
                     {
-                        // Логика для действия мафии в ночи
-                        // ...
-                        Console.WriteLine($"Мафия игрока {player.user.ChatID} действует.");
-                        //player.role.UseSkill(ref /* цель для мафии */);
+                        botController.SendMessage(user.ChatID, $"Ваша роль: {user.player.role.Name}\nОписание: {user.player.role.Description}");
                     }
-                    // Другие проверки для других ролей, если необходимо
                 }
             }
-
-            public void ProcessDayPhase()
+        }
+        public void ProcessNightPhase()
+        {
+            // Логика для ночной фазы
+            foreach (var room in rooms)
             {
-                // Логика для дневной фазы (если в игре присутствует день)
-                // ...
-
-                Console.WriteLine("Наступил день. Игроки обсуждают события.");
-
-                foreach (var player in players)
+                room.SendMEssageToAllUsers("Наступила ночь. Игроки делают свои действия.");
+                foreach (var user in room.users)
                 {
-                    // Логика для обсуждения и принятия решений
-                    // ...
+                    if (user.player.role is MafiaRole)
+                    {
+                        botController.SendMessage(user.ChatID, $"Выберите игрока, которого хотите убить");
+                    }
                 }
+            }
+        }
+
+        public void ProcessDayPhase()
+        {
+            // Логика для дневной фазы
+            foreach (var room in rooms)
+            {
+                room.SendMEssageToAllUsers("Наступил День. Время начать обсуждение");
             }
         }
     }
