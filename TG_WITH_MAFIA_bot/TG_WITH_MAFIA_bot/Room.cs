@@ -14,10 +14,17 @@ namespace TG_WITH_MAFIA_bot
         ISREADYTOSTART,
         INGAME
     }
+    public enum GamePhases
+    {
+        NONE,//ERROR or start value
+        DAY,
+        NIGHT
+    }
     public class Room
     {
         private BotController botController;
         public RoomStates roomState { get; set; }
+        public GamePhases gamePhase { get; private set; } = GamePhases.NONE;
         public long Id{ get; set; }
         public User Owner { get; private set; }
         public List<User> users { get; private set; }
@@ -28,6 +35,17 @@ namespace TG_WITH_MAFIA_bot
             users = new List<User> { Owner };
             this.botController = botController;
             roomState = RoomStates.WAITING;
+        }
+        public void SetNextPhase()
+        {
+            if (gamePhase == GamePhases.NONE)
+            {
+                gamePhase = GamePhases.DAY;
+            }
+            else if (gamePhase == GamePhases.DAY)
+                gamePhase = GamePhases.NIGHT;
+            else if (gamePhase == GamePhases.NIGHT)
+                gamePhase = GamePhases.DAY;
         }
 
         public async Task AddUser(User newUser)

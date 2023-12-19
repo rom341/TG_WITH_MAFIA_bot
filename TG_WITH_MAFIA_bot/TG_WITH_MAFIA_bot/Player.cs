@@ -11,6 +11,6 @@ namespace TG_WITH_MAFIA_bot
         //public User user { get; set; }
         //public string name { get; set; }
         public RoleBase role { get; set; }
-        Player(RoleBase role) { this.role = role; }
+        public Player(RoleBase role) { this.role = role; }
     }
 }

@@ -63,10 +63,6 @@ namespace TG_WITH_MAFIA_bot
             {
                 await HendleRoomReadyComamnd(chatId);
             }
-            else if (message.Text.ToLower() == "/leave")
-            {
-                await HendleLeaveCommand(new User(chatId));
-            }
             else if (message.Text.ToLower().StartsWith("/room test ")) 
             {
                 if (int.TryParse(message.Text.Split(' ')[2], out int number)) 
@@ -74,10 +70,23 @@ namespace TG_WITH_MAFIA_bot
                 else
                     await SendMessage(chatId, "Неверный формат");
             }
+            else if(message.Text.ToLower()=="/room start")
+            {
+                await HendleRoomStartCommend();
+            }
+            else if (message.Text.ToLower() == "/leave")
+            {
+                await HendleLeaveCommand(new User(chatId));
+            }
             else
             {
                 await SendMessage(chatId, "Неизвестная команда");
             }
+        }
+
+        private async Task HendleRoomStartCommend()
+        {
+            gameController.StartGame(roomsController.rooms);
         }
 
         private async Task HendleRoomTestCommand(long chatId, int newUsersCount)
@@ -110,9 +119,9 @@ namespace TG_WITH_MAFIA_bot
                     SendMessage(chatId, $"Вы не можете изменить состояние комнаты во время игры");
                 else
                 {
-                    bool isRoomWaiting = resultRoom.roomState == RoomStates.WAITING;
-                    resultRoom.roomState = isRoomWaiting ? RoomStates.ISREADYTOSTART : RoomStates.WAITING;
-                    SendMessage(chatId, $"Теперь ваша комната {(isRoomWaiting ? "в режиме ожидания" : "готова к запуску")}");
+                    bool isReadyToStart = resultRoom.roomState == RoomStates.ISREADYTOSTART;
+                    resultRoom.roomState = isReadyToStart ? RoomStates.WAITING : RoomStates.ISREADYTOSTART;
+                    SendMessage(chatId, $"Теперь ваша комната {(isReadyToStart ? "в режиме ожидания" : "готова к запуску")}");
                 }
             }
         }
