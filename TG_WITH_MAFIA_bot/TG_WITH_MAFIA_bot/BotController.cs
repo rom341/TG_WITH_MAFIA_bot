@@ -22,6 +22,7 @@ namespace TG_WITH_MAFIA_bot
             Console.WriteLine("Start working");
             botClient.StartReceiving(Update, Error);
             roomsController = new RoomsController(this);
+            gameController = new GameController(this);
         }
 
         private async Task Update(ITelegramBotClient botClient, Update update, CancellationToken token)
@@ -58,11 +59,22 @@ namespace TG_WITH_MAFIA_bot
             {
                 await HandleRoomListCommand(chatId);
             }
-            else if(message.Text.ToLower() == "/room start")
+            else if (message.Text.ToLower() == "/room ready")
             {
-                await HendleRoomStartComamnd(chatId);
+                await HendleRoomReadyComamnd(chatId);
             }
-            else if(message.Text.ToLower() == "/leave")
+            else if (message.Text.ToLower().StartsWith("/room test ")) 
+            {
+                if (int.TryParse(message.Text.Split(' ')[2], out int number)) 
+                    await HendleRoomTestCommand(chatId, number);
+                else
+                    await SendMessage(chatId, "Неверный формат");
+            }
+            else if(message.Text.ToLower()=="/room start")
+            {
+                await HendleRoomStartCommend();
+            }
+            else if (message.Text.ToLower() == "/leave")
             {
                 await HendleLeaveCommand(new User(chatId));
             }
@@ -72,9 +84,46 @@ namespace TG_WITH_MAFIA_bot
             }
         }
 
-        private async Task HendleRoomStartComamnd(long chatId)
+        private async Task HendleRoomStartCommend()
         {
-            gamec
+            gameController.StartGame(roomsController.rooms);
+        }
+
+        private async Task HendleRoomTestCommand(long chatId, int newUsersCount)
+        {
+            int roomId = roomsController.FindRoomIndex(room => room.Id == chatId);
+            if (roomId == -1) await SendMessage(chatId, "Вы должны быть создателем комнаты для выполнения этой команды");
+            else
+            {
+                roomsController.GetRoom(roomId, out Room resultRoom);
+                int stopWhenAchieve = resultRoom.users.Count + newUsersCount + 1;
+                for (int i = resultRoom.users.Count + 1; i < stopWhenAchieve; i++)
+                {
+                    await resultRoom.AddUser(new User(i));
+                }
+                await SendMessage(chatId, $"Добавлено {newUsersCount} пользователей для тестирования");
+            }
+        }
+
+        private async Task HendleRoomReadyComamnd(long chatId)
+        {
+            int roomId = roomsController.FindRoomIndex(room => room.Id == chatId);
+            if (roomId == -1)
+            {
+                SendMessage(chatId, $"Вы должны быть создателем комнаты для использования этой команды");
+            }
+            else
+            {
+                roomsController.GetRoom(roomId, out Room resultRoom);
+                if (resultRoom.roomState == RoomStates.INGAME)
+                    SendMessage(chatId, $"Вы не можете изменить состояние комнаты во время игры");
+                else
+                {
+                    bool isReadyToStart = resultRoom.roomState == RoomStates.ISREADYTOSTART;
+                    resultRoom.roomState = isReadyToStart ? RoomStates.WAITING : RoomStates.ISREADYTOSTART;
+                    SendMessage(chatId, $"Теперь ваша комната {(isReadyToStart ? "в режиме ожидания" : "готова к запуску")}");
+                }
+            }
         }
 
         private async Task HandleCallbackQuery(ITelegramBotClient botClient, CallbackQuery callbackQuery)
