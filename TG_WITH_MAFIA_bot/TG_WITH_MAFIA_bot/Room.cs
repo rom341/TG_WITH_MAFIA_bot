@@ -7,10 +7,25 @@ using Telegram.Bot.Types;
 
 namespace TG_WITH_MAFIA_bot
 {
+    public enum RoomStates
+    {
+        NONE,//ERROR
+        WAITING,
+        ISREADYTOSTART,
+        INGAME
+    }
+    public enum GamePhases
+    {
+        NONE,//ERROR or start value
+        DAY,
+        NIGHT
+    }
     public class Room
     {
         private BotController botController;
-        public long Id { get; private set; }
+        public RoomStates roomState { get; set; }
+        public GamePhases gamePhase { get; private set; } = GamePhases.NONE;
+        public long Id{ get; set; }
         public User Owner { get; private set; }
         public List<User> users { get; private set; }
         public Room(User owner, BotController botController)
@@ -19,15 +34,24 @@ namespace TG_WITH_MAFIA_bot
             Id = Owner.ChatID;
             users = new List<User> { Owner };
             this.botController = botController;
+            roomState = RoomStates.WAITING;
+        }
+        public void SetNextPhase()
+        {
+            if (gamePhase == GamePhases.NONE)
+            {
+                gamePhase = GamePhases.DAY;
+            }
+            else if (gamePhase == GamePhases.DAY)
+                gamePhase = GamePhases.NIGHT;
+            else if (gamePhase == GamePhases.NIGHT)
+                gamePhase = GamePhases.DAY;
         }
 
         public async Task AddUser(User newUser)
         {
-            users.ForEach(async user =>
-            {
-                await botController.SendMessage(user.ChatID, $"Пользователь ({newUser.ChatID}) Присоеденился");
-                user.UserState = UserStates.INMENU;
-            });
+            await botController.SendMessage(Owner.ChatID, $"Пользователь ({newUser.ChatID}) Присоеденился");
+            newUser.UserState = UserStates.INLOBBY;
             users.Add(newUser);
         }
         public async Task RemoveUser(User userToDelete) 
@@ -50,6 +74,13 @@ namespace TG_WITH_MAFIA_bot
         public int FindUserIndex(Func<User, bool> predicate)
         {
             return users.FindIndex(user => predicate(user));
+        }
+        public void SendMEssageToAllUsers(string message)
+        {
+            foreach (User user in users)
+            {
+                botController.SendMessage(user.ChatID, message);
+            }
         }
         public override string ToString()
         {

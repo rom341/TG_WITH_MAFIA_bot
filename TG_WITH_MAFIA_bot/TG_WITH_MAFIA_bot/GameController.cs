@@ -3,76 +3,118 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Timers;
 
 namespace TG_WITH_MAFIA_bot
 {
     public class GameController
     {
-        private List<Player> players;
-        private List<RoleBase> roles;
-        RoleBase[] PossibleRoles = new RoleBase[] { new CivilianRole(), new MafiaRole() };
+        private BotController botController;
+        public List<Room> roomsWithStartedGame { get; private set; }
+        private Timer phaseTimer;
+        //private RoleBase[] PossibleRoles = new RoleBase[] { new CivilianRole(), new MafiaRole() };
 
-        public GameController(List<Player> players)
+        public GameController(BotController botController)
         {
-            this.players = players;
-            this.roles = new List<RoleBase>();
+            this.botController = botController;
+            phaseTimer = new Timer(120000);//2 минуты
+            this.phaseTimer.Elapsed += OnPhaseTimerElapsed;
+        }
+
+        private void OnPhaseTimerElapsed(object sender, ElapsedEventArgs e)
+        {
+            Console.WriteLine($"PhaseTimer tick");
+            foreach (var room in roomsWithStartedGame)
+            {
+                room.SetNextPhase();
+                if (room.gamePhase == GamePhases.DAY)
+                    ProcessDayPhase(room);
+                else if (room.gamePhase == GamePhases.NIGHT)
+                    ProcessNightPhase(room);
+            }
+        }
+
+        public void StartGame(List<Room> rooms)
+        {
+            List<Room> roomWhereGameWillStart = rooms.Where(room => room.roomState == RoomStates.ISREADYTOSTART).ToList();
+            //Роздаем роли
+            if (!GiveRoles(roomWhereGameWillStart))
+                Console.WriteLine($"StartGame error");
+
+            foreach (Room room in roomsWithStartedGame)
+            {
+                Console.WriteLine($"Игра '{room.Id}' началась!");
+                room.SendMEssageToAllUsers("Игра в вашей комнате началась!");
+            }
+            if (!phaseTimer.Enabled) phaseTimer.Start();
+        }
+        private bool GiveRoles(List<Room> roomsWhereGameWillBegin)
+        {
+            this.roomsWithStartedGame = roomsWhereGameWillBegin;
             Random random = new Random();
-
-            foreach (var player in players)
+            foreach (Room room in this.roomsWithStartedGame)
             {
-                IRole currentRole = PossibleRoles[random.Next(PossibleRoles.Length)].Clone();
-                if (currentRole is MafiaRole && roles.Count(r => r.GetType() == typeof(MafiaRole)) < roles.Count / 4)
+                if (room.roomState != RoomStates.ISREADYTOSTART)
                 {
-                    roles.Add((RoleBase)currentRole);
-                    player.role = (RoleBase)currentRole;
+                    botController.SendMessage(room.Owner.ChatID, $"Для начала игры измените статус комнаты при помощи команды '/room ready'");
+                    return false;
+                }
+                if (room.users.Count < 3)
+                {
+                    botController.SendMessage(room.Owner.ChatID, $"Для начала игры необходимо, как минимум 3 игрока");
+                    roomsWithStartedGame.Remove(room);
+                    return false;
+                }
+                //Заполняем 1/3 мафией, остальных гражданскими
+                else
+                {
+                    room.roomState = RoomStates.INGAME;
+                    //Перемешаем масив
+                    for (int i = room.users.Count - 1; i >= 1; i--)
+                    {
+                        int j = random.Next(i + 1);
+                        var temp = room.users[j];
+                        room.users[j] = room.users[i];
+                        room.users[i] = temp;
+                    }
+                    //Мафией будеи 1/3 игроков
+                    for (int i = 0; i < room.users.Count / 3; i++)
+                    {
+                        room.users[i].player = new Player(new MafiaRole());
+                    }
+                    //Остальные - гражданские
+                    for (int i = room.users.Count / 3; i < room.users.Count; i++)
+                    {
+                        room.users[i].player = new Player(new CivilianRole());
+                    }
+                    foreach (var user in room.users)
+                    {
+                        botController.SendMessage(user.ChatID, $"Ваша роль: {user.player.role.Name}\nОписание: {user.player.role.Description}");
+                    }
+                }
+            }
+            return true;
+        }
+        private void ProcessNightPhase(Room room)
+        {
+            // Логика для ночной фазы
+
+            room.SendMEssageToAllUsers("Наступила ночь. Игроки делают свои действия.");
+            foreach (var user in room.users)
+            {
+                if (user.player.role is MafiaRole)
+                {
+                    botController.SendMessage(user.ChatID, $"Выберите игрока, которого хотите убить");
                 }
             }
         }
 
-        public void StartGame()
+        public void ProcessDayPhase(Room room)
         {
-            // Инициализация игры, ролей, раздача ролей игрокам и т.д.
-            
+            // Логика для дневной фазы
 
-            Console.WriteLine("Игра началась!");
-            foreach (var player in players)
-            {
-                Console.WriteLine($"{player.user.ChatID} получил роль {player.role.Name}");
-            }
-        }
+            room.SendMEssageToAllUsers("Наступил День. Время начать обсуждение");
 
-        public void ProcessNightPhase()
-        {
-            // Логика для ночной фазы (если в игре присутствует ночь)
-            // ...
-
-            Console.WriteLine("Наступила ночь. Игроки делают свои действия.");
-
-            foreach (var player in players)
-            {
-                if (player.role is MafiaRole)
-                {
-                    // Логика для действия мафии в ночи
-                    // ...
-                    Console.WriteLine($"Мафия игрока {player.user.ChatID} действует.");
-                    //player.role.UseSkill(ref /* цель для мафии */);
-                }
-                // Другие проверки для других ролей, если необходимо
-            }
-        }
-
-        public void ProcessDayPhase()
-        {
-            // Логика для дневной фазы (если в игре присутствует день)
-            // ...
-
-            Console.WriteLine("Наступил день. Игроки обсуждают события.");
-
-            foreach (var player in players)
-            {
-                // Логика для обсуждения и принятия решений
-                // ...
-            }
         }
     }
 }

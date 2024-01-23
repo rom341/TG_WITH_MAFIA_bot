@@ -17,6 +17,7 @@ namespace TG_WITH_MAFIA_bot
     {
         public long ChatID { get; private set; }
         public UserStates UserState { get; set; }
+        public Player player { get; set; }
         public User(long id)
         {
             ChatID = id;
