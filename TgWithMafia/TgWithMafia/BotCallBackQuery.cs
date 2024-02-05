@@ -11,13 +11,13 @@ namespace TgWithMafia
     internal class BotCallBackQuery
     {
         private static BotCallBackQuery _instance;
-        private readonly Dictionary<long, long> _operationMap;
+        public readonly Dictionary<long, long> _operationMap;
 
         public BotCallBackQuery()
         {
             _operationMap = new Dictionary<long, long>();
         }
-
+        public Dictionary<long, long> getOperationMap() { return _operationMap; }
         public static BotCallBackQuery Instance
         {
             get

@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.Linq;
-using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using Telegram.Bot.Types;
 
@@ -49,9 +50,13 @@ namespace TgWithMafia
                         string notifyMessage = $"Наступает {nextState}.";
                         BotCommandsHandler.NotifyUsersInGame(gameId, notifyMessage);
 
-                        if (nextState == "MIDDAY" || nextState == "NIGHT")
+                        if(nextState == "MORNING")
                         {
-                            DisplayPlayerMenuAsync(gameId);
+                            PerformMorningActions(gameId);
+                        }
+                        else if (nextState == "MIDDAY" || nextState == "NIGHT")
+                        {
+                            DisplayPlayerMenuAsync(gameId, nextState == "NIGHT" ? nextState : "");
                         }
                     }
                 }
@@ -59,6 +64,50 @@ namespace TgWithMafia
             catch (Exception ex)
             {
                 Console.WriteLine("Error during timer callback: " + ex.Message);
+            }
+        }
+
+        private void PerformMorningActions(long gameId)
+        {
+            try
+            {
+                // Get the operation map from BotCallBackQuery
+                Dictionary<long, long> operationMap = BotCallBackQuery.Instance.getOperationMap();
+
+                // Retrieve users and their roles for the current game
+                string getUsersQuery = $"SELECT * FROM Users U JOIN RoomUsers RU ON U.ChatID = RU.UserID JOIN Rooms R ON RU.RoomID = R.RoomID " +
+                    $"JOIN Players P ON U.PlayerID = P.PlayerID JOIN Roles ON P.RoleID = Roles.ID WHERE R.GameID = {gameId}";
+
+                DataTable usersTable = DatabaseController.Instance.ExecuteSqlQuery(getUsersQuery);
+
+                // Identify Mafia and Doctor from roles
+                var mafiaChatIds = usersTable.AsEnumerable()
+                    .Where(row => row["RoleName"].ToString().ToUpper() == "MAFIA")
+                    .Select(row => Convert.ToInt64(row["ChatID"]))
+                    .ToList();
+
+                var doctorChatIds = usersTable.AsEnumerable()
+                    .Where(row => row["RoleName"].ToString().ToUpper() == "DOCTOR")
+                    .Select(row => Convert.ToInt64(row["ChatID"]))
+                    .ToList();
+
+                var usersToKill = operationMap
+         .Where(kv => mafiaChatIds.Contains(kv.Key) && !doctorChatIds.Contains(kv.Key))
+         .Select(kv => kv.Value)
+         .ToList();
+
+                // Implement the logic to kill players (you may want to update the database accordingly)
+                foreach (long userToKillId in usersToKill)
+                {
+                    DatabaseController.Instance.ExecuteSqlQuery($"UPDATE Users SET PlayerID = NULL WHERE ChatID = {userToKillId}");
+                    // Implement logic to kill the player, for example, update their status in the database
+                    BotCommandsHandler.NotifyUsersInRoom(Convert.ToInt64(usersTable.Rows[0]["RoomID"]),$"Player with ChatID {userToKillId} was killed by Mafia.");
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error during morning actions: " + ex.Message);
             }
         }
 
@@ -161,12 +210,12 @@ namespace TgWithMafia
             return Convert.ToInt32(newRoleTable.Rows[0]["ID"]);
         }
 
-        private void DisplayPlayerMenuAsync(long gameId)
+        private async Task DisplayPlayerMenuAsync(long gameId, string stage = "")
         {
             try
             {
                 // Retrieve all users in the current game
-                string getUsersQuery = $"SELECT * FROM Users U JOIN RoomUsers RU ON U.ChatID = RU.UserID JOIN Rooms R ON RU.RoomID = R.RoomID WHERE R.GameID = {gameId}";
+                string getUsersQuery = $"SELECT * FROM Users U JOIN RoomUsers RU ON U.ChatID = RU.UserID JOIN Rooms R ON RU.RoomID = R.RoomID JOIN Players P on P.PlayerID = U.PlayerID join Roles ro on ro.ID = P.RoleID WHERE R.GameID = {gameId}";
 
                 DataTable usersTable = DatabaseController.Instance.ExecuteSqlQuery(getUsersQuery);
 
@@ -180,14 +229,17 @@ namespace TgWithMafia
                 foreach (DataRow userRow in usersTable.Rows)
                 {
                     long userId = Convert.ToInt64(userRow["ChatID"]);
+                    string userRole = userRow["RoleName"].ToString();
 
-                    // Exclude the current player from the list
-                    var otherPlayers = usersTable.AsEnumerable()
-                        .Where(row => Convert.ToInt64(row["ChatID"]) != userId)
-                        .ToDictionary(row => Convert.ToInt64(row["ChatID"]), row => row["TelegramName"].ToString());
+                    if (string.IsNullOrEmpty(stage) || (stage.ToUpper() == "NIGHT" && userRole.ToUpper() == "MAFIA"))
+                    {
+                        // If stage is empty or NIGHT and the user is MAFIA, display the menu
+                        var otherPlayers = usersTable.AsEnumerable()
+                            .Where(row => Convert.ToInt64(row["ChatID"]) != userId)
+                            .ToDictionary(row => Convert.ToInt64(row["ChatID"]), row => row["TelegramName"].ToString());
 
-                    // Display the menu to the current player
-                    BotCallBackQuery.Instance.DisplayMenuAsync(userId, otherPlayers);
+                        await BotCallBackQuery.Instance.DisplayMenuAsync(userId, otherPlayers);
+                    }
                 }
             }
             catch (Exception ex)
