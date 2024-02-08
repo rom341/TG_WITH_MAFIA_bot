@@ -54,6 +54,10 @@ namespace TgWithMafia
                         {
                             PerformMorningActions(gameId);
                         }
+                        else if(nextState == "EVENING")
+                        {  
+                            PerformEveningActions(gameId);
+                        }
                         else if (nextState == "MIDDAY" || nextState == "NIGHT")
                         {
                             DisplayPlayerMenuAsync(gameId, nextState == "NIGHT" ? nextState : "");
@@ -64,6 +68,61 @@ namespace TgWithMafia
             catch (Exception ex)
             {
                 Console.WriteLine("Error during timer callback: " + ex.Message);
+            }
+        }
+
+        private void PerformEveningActions(long gameId)
+        {
+            try
+            {
+                // Get the operation map from BotCallBackQuery
+                Dictionary<long, long> operationMap = BotCallBackQuery.Instance.getOperationMap();
+
+                // Retrieve users and their roles for the current game
+                string getUsersQuery = $"SELECT * FROM Users U JOIN RoomUsers RU ON U.ChatID = RU.UserID JOIN Rooms R ON RU.RoomID = R.RoomID " +
+                                        $"JOIN Players P ON U.PlayerID = P.PlayerID JOIN Roles ON P.RoleID = Roles.ID WHERE R.GameID = {gameId}";
+
+                DataTable usersTable = DatabaseController.Instance.ExecuteSqlQuery(getUsersQuery);
+
+                // Count the number of votes for each user
+                var voteCounts = operationMap
+                    .GroupBy(kv => kv.Value)
+                    .Select(group => new { UserId = group.Key, Count = group.Count() })
+                    .ToList();
+
+                // Calculate the total number of players in the game
+                int totalPlayers = usersTable.Rows.Count;
+
+                // Calculate the total number of votes cast
+                int totalVotes = voteCounts.Sum(x => x.Count);
+
+                // Check if the total number of votes is less than 50% of total players
+                if (totalVotes < totalPlayers / 2)
+                {
+                    Console.WriteLine("No player received more than 50% of votes during the evening.");
+                    return;
+                }
+
+                // Find the user with the most votes
+                var maxVotes = voteCounts.OrderByDescending(x => x.Count).FirstOrDefault();
+
+                // Check if there is a clear winner or a tie
+                if (maxVotes != null && maxVotes.Count > voteCounts.Where(x => x.Count == maxVotes.Count).Count())
+                {
+                    long userToKillId = maxVotes.UserId;
+
+                    // Implement logic to kill the player, for example, update their status in the database
+                    DatabaseController.Instance.ExecuteSqlQuery($"UPDATE Users SET PlayerID = NULL WHERE ChatID = {userToKillId}");
+                    BotCommandsHandler.NotifyUsersInRoom(Convert.ToInt64(usersTable.Rows[0]["RoomID"]), $"Player with ChatID {userToKillId} was killed during the evening.");
+                }
+                else
+                {
+                    Console.WriteLine("There is no clear winner during the evening. No one will be killed.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error during evening actions: " + ex.Message);
             }
         }
 
